@@ -1,20 +1,20 @@
 # UED Frontier Teacher (LF-ACCEL)
 
-Teacher for open-ended Minigrid UED on [JaxUED](https://github.com/DramaCow/jaxued). Goal: beat **PLR⊥** and **ACCEL** on held-out mazes at the same student budget (30k PPO updates).
+Teacher для open-ended Minigrid UED на [JaxUED](https://github.com/DramaCow/jaxued). Цель: побить **PLR⊥** и **ACCEL** на held-out лабиринтах при том же бюджете student'а (30k PPO updates).
 
-## Method: LF-ACCEL
+## Метод: LF-ACCEL
 
-| Piece | Choice | Source |
-|-------|--------|--------|
+| Компонент | Выбор | Источник |
+|-----------|--------|----------|
 | Score | Bernoulli learnability \(p(1-p)\), Laplace \(\alpha=1\) | Rutherford et al. 2024 (SFL) |
-| Buffer stats | Cumulative `ep_count` / `suc_count` across replays | this work |
-| Replay | Robust PLR⊥ (no exploratory grads on DR) | Jiang et al. 2021 |
-| Mutations | ACCEL edits (`num_edits=5`) after replay | Parker-Holder et al. 2022 |
-| Student | PPO + LSTM, JaxUED defaults — **not changed** | Coward et al. 2024 |
+| Статистика буфера | Накопительные `ep_count` / `suc_count` по replay | эта работа |
+| Replay | Robust PLR⊥ (без exploratory grads на DR) | Jiang et al. 2021 |
+| Мутации | ACCEL edits (`num_edits=5`) после replay | Parker-Holder et al. 2022 |
+| Student | PPO + LSTM, дефолты JaxUED — **не меняем** | Coward et al. 2024 |
 
-Logging is **local** (`logs/.../metrics.jsonl`), no wandb.
+Логирование **локальное** (`logs/.../metrics.jsonl`), без wandb.
 
-## Setup
+## Установка
 
 ```powershell
 cd C:\Users\Андрон\Projects\ued-frontier-teacher
@@ -24,9 +24,9 @@ pip install -r requirements.txt
 pip install --no-deps -e vendor/jaxued
 ```
 
-**GPU on Windows:** `jax[cuda12]==0.4.30` has no Win CUDA wheels. For full 30k-update runs use **WSL2** (see below) or Colab/Kaggle. Native `.venv` here is CPU — fine for smoke tests.
+**GPU на Windows:** у `jax[cuda12]==0.4.30` нет Win CUDA wheels. Для полных прогонов на 30k updates используйте **WSL2** (ниже) или Colab/Kaggle. Нативный `.venv` здесь — CPU, удобен для smoke-тестов.
 
-### WSL2 GPU (recommended for full runs)
+### WSL2 GPU (рекомендуется для полных прогонов)
 
 ```bash
 wsl
@@ -37,7 +37,7 @@ pip install "jax[cuda12]==0.4.30" flax==0.8.5 chex==0.1.86 optax==0.2.3 \
 pip install --no-deps -e vendor/jaxued
 ```
 
-## Smoke test (CPU)
+## Smoke-тест (CPU)
 
 ```powershell
 .\.venv\Scripts\python.exe examples\maze_frontier.py `
@@ -45,35 +45,36 @@ pip install --no-deps -e vendor/jaxued
   --checkpoint_save_interval 0 --run_name smoke
 ```
 
-First JIT compile can take several minutes on CPU.
+Первая JIT-компиляция на CPU может занять несколько минут.
 
-## Teacher variants (`examples/maze_teacher.py`)
+## Варианты teacher (`examples/maze_teacher.py`)
 
-Unified entry point for curriculum experiments. Select with `--teacher_mode`:
+Единая точка входа для экспериментов с curriculum. Выбор через `--teacher_mode`:
 
-| Mode | Score / collect | Notes |
-|------|-----------------|-------|
-| `lf_accel` | \(p(1-p)\) + cumulative buffer + ACCEL | default (same as `maze_frontier.py`) |
-| `sfl_pure` | collect ~2k maps → top-K by \(p(1-p)\) → train | Rutherford SFL, no PLR buffer |
-| `sfl_accel_long` | LF-ACCEL but score from long rollouts (`--score_rollout_steps 512`) | separates train vs score horizon |
-| `mna_accel` | MNA (DEGen): sum of negative advantages × solved gate | ACCEL mutations |
-| `learnability_filtered` | \(p(1-p)\) only if level solved ≥ once | drops unsolvable noise |
-| `learnability_ema` | EMA of \(p\) → \(p(1-p)\) | smoother than raw counters |
-| `accel_maxmc` | MaxMC (ACCEL baseline score) | for comparison |
-| `plr_pvl` | positive value loss (PLR baseline score) | for comparison |
+| Режим | Score / collect | Заметки |
+|-------|-----------------|--------|
+| `lf_accel` | \(p(1-p)\) + накопительный буфер + ACCEL | по умолчанию (как `maze_frontier.py`) |
+| `sfl_pure` | collect ~2k карт → top-K по \(p(1-p)\) → train | Rutherford SFL, без PLR-буфера |
+| `sfl_accel_long` | LF-ACCEL, но score с длинных rollouts (`--score_rollout_steps 512`) | разделяет горизонты train и score |
+| `mna_accel` | MNA (DEGen): сумма отрицательных advantages × solved gate | мутации ACCEL |
+| `learnability_filtered` | \(p(1-p)\) только если уровень решён ≥ 1 раза | отсекает нерешаемый шум |
+| `learnability_ema` | EMA от \(p\) → \(p(1-p)\) | сглаженнее сырых счётчиков |
+| `accel_maxmc` | MaxMC (score бейзлайна ACCEL) | для сравнения |
+| `plr_pvl` | positive value loss (score бейзлайна PLR) | для сравнения |
 
 ```bash
-# WSL GPU — full budget, seed 0
+# WSL GPU — полный бюджет, seed 0
 source .venv-wsl/bin/activate
 python examples/maze_teacher.py --teacher_mode sfl_pure --seed 0 --run_name sfl_pure --checkpoint_save_interval 17
-# all new methods sequentially:
+# все новые методы по очереди:
 bash scripts/run_new_methods.sh 0
 ```
 
-Smoke all modes: `bash scripts/smoke_teacher_modes.sh`
+Smoke всех режимов: `bash scripts/smoke_teacher_modes.sh`
 
+## Полный бюджет (бейзлайны + метод)
 
-Do **not** override student PPO flags. Use `--checkpoint_save_interval 17`.
+**Не** переопределяйте PPO-флаги student'а. Используйте `--checkpoint_save_interval 17`.
 
 ```powershell
 # PLR⊥
@@ -85,32 +86,32 @@ Do **not** override student PPO flags. Use `--checkpoint_save_interval 17`.
 # DR
 .\.venv\Scripts\python.exe examples\maze_dr_baseline.py --seed 0 --run_name dr --checkpoint_save_interval 17
 
-# LF-ACCEL (ours)
+# LF-ACCEL (наш метод)
 .\.venv\Scripts\python.exe examples\maze_frontier.py --seed 0 --run_name lf_accel --checkpoint_save_interval 17
 ```
 
-Repeat for seeds `0,1,2`. Or: `bash scripts/run_full_seed.sh 0` under WSL.
+Повторите для сидов `0,1,2`. Или в WSL: `bash scripts/run_full_seed.sh 0`.
 
-## Outputs
+## Артефакты
 
-| Path | Contents |
-|------|----------|
-| `logs/<run_name>/<seed>/metrics.jsonl` | solve rates, sampler stats |
-| `checkpoints/<run_name>/<seed>/` | orbax checkpoints for secret-set eval |
-| `report/REPORT.md` | experimental write-up |
+| Путь | Содержимое |
+|------|------------|
+| `logs/<run_name>/<seed>/metrics.jsonl` | solve rates, статистика sampler'а |
+| `checkpoints/<run_name>/<seed>/` | orbax-чекпоинты для eval на секретном наборе |
+| `report/REPORT.md` / `report/REPORT.pdf` | отчёт по экспериментам |
 
-## Layout
+## Структура
 
 ```
 examples/
-  maze_frontier.py      # LF-ACCEL teacher (legacy entry)
-  maze_teacher.py       # unified teacher modes (SFL, MNA, filtered, EMA, …)
-  teacher_scores.py     # score functions
-  maze_plr_baseline.py  # PLR⊥ / ACCEL (local log)
-  maze_dr_baseline.py   # DR (local log)
+  maze_frontier.py      # teacher LF-ACCEL (legacy entry)
+  maze_teacher.py       # единые режимы teacher (SFL, MNA, filtered, EMA, …)
+  teacher_scores.py     # score-функции
+  maze_plr_baseline.py  # PLR⊥ / ACCEL (локальный лог)
+  maze_dr_baseline.py   # DR (локальный лог)
   local_log.py
 scripts/
-  run_new_methods.sh    # queue: sfl_pure, sfl_accel_long, mna_accel, lf_filtered, lf_ema
+  run_new_methods.sh    # очередь: sfl_pure, sfl_accel_long, mna_accel, lf_filtered, lf_ema
   smoke_teacher_modes.sh
 vendor/jaxued/          # upstream JaxUED (editable install)
 report/REPORT.md
